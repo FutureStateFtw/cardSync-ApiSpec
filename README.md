@@ -4,7 +4,7 @@ OpenAPI specification for the FutureState CardSync system API - a credential man
 
 ## 📖 Documentation
 
-View the interactive API documentation here: **[https://kylodren.github.io/cardSync-ApiSpec/](https://kylodren.github.io/cardSync-ApiSpec/)**
+View the interactive API documentation here: **[https://futurestateftw.github.io/cardSync-ApiSpec/](https://futurestateftw.github.io/cardSync-ApiSpec/)**
 
 ## 📁 Repository Contents
 
