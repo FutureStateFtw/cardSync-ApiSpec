@@ -4,6 +4,19 @@ info:
   version: 0.0.1
   description: >-
     This document describes the FutureState Cardsync system API. 
+
+
+    Important changes to note from previous versions:
+
+    - Endpoint names have been changed for clarity
+
+    - Properties have been changed to camelCase
+
+    - Allowed "enumerated" values have been changed to lowercase
+
+    - companyCode is now a string instead of an integer
+
+    - cardNumber is now a string instead of an integer
 servers:
   - url: https://valar.api.futurestate.cloud/cardsync
     description: Production server
@@ -47,7 +60,7 @@ paths:
               schema:
                 type: object
         '409':
-          description: Card number already exists for another credential
+          description: cardNumber already exists for another credential
           content:
             application/json:
               schema:
@@ -144,12 +157,15 @@ paths:
               schema:
                 type: object
 
-  /credentials/updateStatus:
+  /credential/updateStatus:
     post:
       tags:
         - Credentials
       summary: Update the status of a credential
-      description: Updates the status on the most recent credential for a person's specified device type
+      description: |
+        Updates the status on the most recent credential for a person's specified device type
+
+        **Note: See request body.  Should this work off of cardNumber instead?**
       operationId: updateCredential
       requestBody:
         required: true
@@ -396,13 +412,12 @@ components:
           type: string
           description: Unique card number identifier
         credentialId:
-          type: string
-          format: uuid
-          nullable: true
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
         companyCode:
           type: string
-          minimum: 0
-          maximum: 10000
           description: Company code identifier
         deviceType:
           $ref: '#/components/schemas/DeviceType'
@@ -428,7 +443,7 @@ components:
           type: string
           format: uuid
         companyCode:
-          type: integer
+          type: string
         deviceType:
           $ref: '#/components/schemas/DeviceType'
         walletType:
@@ -481,7 +496,7 @@ components:
       type: string
       enum:
         - user-suspended
-        - suspended
+        - suspended (should be admin-suspended?)
         - unlinked
         - active
 
@@ -527,7 +542,6 @@ components:
             type: integer
           default: []
         destination:
-          nullable: true
           oneOf:
             - type: array
               items:
@@ -543,7 +557,6 @@ components:
         endChangeId:
           type: integer
         destination:
-          nullable: true
           oneOf:
             - type: array
               items:
@@ -594,7 +607,7 @@ components:
         accountName:
           type: string
         balance:
-          type: number
+          type: string
         personId:
           type: string
         currencyCode:
