@@ -1,0 +1,713 @@
+openapi: 3.1.0
+info:
+  title: Cardsync API
+  version: 0.0.1
+  description: >-
+    This document describes the FutureState Cardsync system API. 
+servers:
+  - url: https://valar.api.futurestate.cloud/cardsync
+    description: Production server
+paths:
+  /credential:
+    put:
+      tags:
+        - Credentials
+      summary: Create or update a credential
+      description: |
+        Creates or updates a credential.  
+      operationId: addEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credential'
+      responses:
+        '200':
+          description: Credential successfully saved, returns the changeId and createdAt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Credential saved
+                  changeId:
+                    type: integer
+                    example: 12
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: '2024-08-19T15:41:55.869828-07:00'
+        '400':
+          description: Credential change conflicts with business rules
+          content:
+            application/json:
+              schema:
+                type: object
+        '409':
+          description: Card number already exists for another credential
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /credential/{cardNumber}:
+    get:
+      tags:
+        - Credentials
+      summary: Retrieve device details by cardNumber
+      description: |
+       Retrieves device details associated with a specific card number.
+
+       **Comment: Should the {cardNumber} parameter include the companyCode?**
+      operationId: getDevice
+      parameters:
+        - name: cardNumber
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnDevice'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+                
+  /credentials/{personId}:
+    get:
+      tags:
+        - Credentials
+      summary: Retrieve current credentials for a person
+      description: Retrieves the most recent credential for each device type associated with a person
+      operationId: getCredentials
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of the most recent credentials for each device type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnCredentials'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /credentials/{personId}/all:
+    get:
+      tags:
+        - Credentials
+      summary: Retrieve all credentials for a person
+      description: Retrieves all credentials associated with a person, including historical credentials
+      operationId: getAllCredentials
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: List of all credentials associated with the person
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnCredentials'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /credentials/updateStatus:
+    post:
+      tags:
+        - Credentials
+      summary: Update the status of a credential
+      description: Updates the status on the most recent credential for a person's specified device type
+      operationId: updateCredential
+      requestBody:
+        required: true
+        description: Credential update data including personId, status, and device type
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExistingCredentialUpdate'
+      responses:
+        '200':
+          description: Credential successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  
+
+  /mealplan/{personId}:
+    get:
+      tags:
+        - Mealplan
+      summary: Retrieve mealplan account balances for a person
+      description: Retrieves all mealplan account balances associated with a person
+      operationId: getMealplan
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Mealplan account balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealplanAccounts'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+  /mobilephoto/{personId}:
+    get:
+      tags:
+        - Photo
+      description: Retrieves a person's photo optimized for mobile device display
+      operationId: getMobilePhoto
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{8}$'
+      responses:
+        '200':
+          description: Photo data
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /photo/has-photo/{personId}:
+    get:
+      tags:
+        - Photo
+      summary: Check if a photo exists for a person
+      description: Checks whether a photo is on file for a person
+      operationId: hasPhoto
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Photo existence status
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /photo/resolution/{personId}:
+    get:
+      tags:
+        - Photo
+      summary: Retrieve photo resolution for a person
+      description: Retrieves the resolution dimensions of a person's original photo
+      operationId: getPhotoResolution
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{8}$'
+      responses:
+        '200':
+          description: Photo resolution data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoResolution'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+  /photos/resolutions:
+    post:
+      tags:
+        - Photo
+      summary: Retrieve photo resolutions for multiple people
+      description: Retrieves photo resolution dimensions for multiple people in a single request
+      operationId: getPhotosResolutions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      responses:
+        '200':
+          description: Photo resolutions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultipleResolutions'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+  /replay:
+    post:
+      tags:
+        - Credentials
+      summary: Replay credential records to downstream systems
+      description: Resends one or more credential records to configured downstream systems
+      operationId: replayCredentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ReplayRequestBodyIds'
+                - $ref: '#/components/schemas/ReplayRequestBodyIdsRange'
+                - $ref: '#/components/schemas/ReplayRequestBodyDates'
+      responses:
+        '200':
+          description: Replay successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    $ref: '#/components/schemas/ReplayStatus'
+                  message:
+                    type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+  /health:
+    get:
+      tags:
+        - Health
+      description: Confirms the API is operational and responding to requests
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    Credential:
+      type: object
+      required:
+        - personId
+        - firstName
+        - lastName
+        - status
+        - cardNumber
+        - credentialId
+        - companyCode
+        - deviceType
+        - walletType
+        - source
+      properties:
+        personId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          $ref: '#/components/schemas/CredentialStatus'
+        cardNumber:
+          type: string
+          description: Unique card number identifier
+        credentialId:
+          type: string
+          format: uuid
+          nullable: true
+        companyCode:
+          type: string
+          minimum: 0
+          maximum: 10000
+          description: Company code identifier
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        walletType:
+          $ref: '#/components/schemas/WalletType'
+        source:
+          $ref: '#/components/schemas/CredentialSource'
+
+    ReturnCredential:
+      type: object
+      properties:
+        personId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          $ref: '#/components/schemas/CredentialStatus'
+        cardNumber:
+          type: integer
+        credentialId:
+          type: string
+          format: uuid
+        companyCode:
+          type: integer
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        walletType:
+          $ref: '#/components/schemas/WalletType'
+        source:
+          $ref: '#/components/schemas/CredentialSource'
+        createdAt:
+          type: string
+          format: date-time
+        changeId:
+          type: integer
+        isInitial:
+          type: boolean
+        multicredentialAllowed:
+          type: boolean
+
+    ReturnCredentials:
+      type: object
+      properties:
+        credentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReturnCredential'
+
+    ExistingCredentialUpdate:
+      type: object
+      description: Request body for updating an existing credential
+      properties:
+        personId:
+          type: string
+        status:
+          $ref: '#/components/schemas/CredentialStatus'
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+
+    ReplayRequestBodyDates:
+      type: object
+      description: Request body for replay operation with date range
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        destination:
+          $ref: '#/components/schemas/BoomiDestination'
+
+    CredentialStatus:
+      type: string
+      enum:
+        - user-suspended
+        - suspended
+        - unlinked
+        - active
+
+    DeviceType:
+      type: string
+      enum:
+        - iphone
+        - android
+        - apple watch
+        - physical
+
+    WalletType:
+      type: string
+      enum:
+        - apple
+        - google
+        - physical
+
+    CredentialSource:
+      type: string
+      enum:
+        - selfservice
+        - atrium
+        - swift
+        - cardsync
+        - ops
+    BoomiDestination:
+      type: string
+      enum:
+        - sa-external-sys
+        - starrez
+        - swift
+        - transact
+        - atrium
+
+    ReplayRequestBodyIds:
+      type: object
+      description: Request body for replay operation with specific change IDs
+      properties:
+        changeIds:
+          type: array
+          items:
+            type: integer
+          default: []
+        destination:
+          nullable: true
+          oneOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/BoomiDestination'
+            - type: "null"
+
+    ReplayRequestBodyIdsRange:
+      type: object
+      description: Request body for replay operation with change ID range
+      properties:
+        startChangeId:
+          type: integer
+        endChangeId:
+          type: integer
+        destination:
+          nullable: true
+          oneOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/BoomiDestination'
+            - type: "null"
+
+    ReplayStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+
+    ReturnDevice:
+      type: object
+      properties:
+        cardNumber:
+          type: string
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        status:
+          $ref: '#/components/schemas/CredentialStatus'
+        personId:
+          type: string
+
+    PhotoResolution:
+      type: object
+      properties:
+        personId:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+
+    MultipleResolutions:
+      type: object
+      properties:
+        resolutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhotoResolution'
+
+    Balance:
+      type: object
+      properties:
+        accountName:
+          type: string
+        balance:
+          type: number
+        personId:
+          type: string
+        currencyCode:
+          type: string
+        exponent:
+          type: integer
+        lastUpdated:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum:
+            - storedBalance
+            - swipe
+
+    BalanceAccountNames:
+      type: string
+      enum:
+        - CatCash
+        - Dining Dollars
+        - Flex Dollars
+
+    CurrencyCode:
+      type: string
+      enum:
+        - USD
+
+    MealplanAccounts:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+
+    Swipe:
+      type: object
+      properties:
+        accountName:
+          type: string
+        remainingSwipes:
+          type: integer
+        personId:
+          type: string
+          pattern: '^[0-9]{8}$'
+        lastUpdated:
+          type: string
+          format: date-time
+
+    SwipeAccountNames:
+      type: string
+      enum:
+        - Meal Plan
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ValidationError:
+      description: >
+        NOTE: The exact format of this error response is TBD.
+        The final structure may change in future versions.
+      type: object
+      required:
+        - title
+        - status
+        - errors
+      properties:
+        note: 
+          type: string
+          description: note
+          example: "The exact format of this error response is TBD."
+        type:
+          type: string
+          description: A URI reference that identifies the problem type (RFC 7807)
+          example: "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+        title:
+          type: string
+          description: Short, human-readable summary of the problem
+          example: "One or more validation errors occurred."
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Optional detailed human-readable explanation
+          example: "See the errors property for details."
+        instance:
+          type: string
+          description: URI of the request instance that caused the error
+          example: "/credential"
+        errors:
+          type: object
+          description: Field-specific validation errors
+          additionalProperties:
+            type: array
+            items:
+              type: string
+            example:
+              - "The PersonId field is required."
+
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key required for all operations
+
+security:
+  - ApiKeyAuth: []
