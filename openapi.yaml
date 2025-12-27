@@ -80,7 +80,7 @@ paths:
       description: |
        Retrieves device details associated with a specific card number.
 
-       **Comment: Should the {cardNumber} parameter include the companyCode?**
+       **Comment: When using this GET, should the {cardNumber} parameter include the companyCode?**
       operationId: getDevice
       parameters:
         - name: cardNumber
