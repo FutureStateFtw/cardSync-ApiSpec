@@ -21,14 +21,19 @@ servers:
   - url: https://valar.api.futurestate.cloud/cardsync
     description: Production server
 paths:
-  /credential:
-    put:
+#region Credential
+  /credentials:
+    post:
       tags:
         - Credentials
-      summary: Create or update a credential
+      summary: Submit a credential state
       description: |
-        Creates or updates a credential.  
-      operationId: addEvent
+        Submits a new credential state.
+
+        If the request is valid,
+        this operation appends a new credential event.
+        
+        The active credential is derived from the latest event per device type.
       requestBody:
         required: true
         content:
@@ -37,64 +42,58 @@ paths:
               $ref: '#/components/schemas/Credential'
       responses:
         '200':
-          description: Credential successfully saved, returns the changeId and createdAt
+          description: Credential successfully saved, returns the cardsync event record
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Credential saved
-                  changeId:
-                    type: integer
-                    example: 12
-                  createdAt:
-                    type: string
-                    format: date-time
-                    example: '2024-08-19T15:41:55.869828-07:00'
+                $ref: '#/components/schemas/ReturnCredentials'
         '400':
           description: Credential change conflicts with business rules
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/HTTPValidationError'
         '409':
           description: cardNumber already exists for another credential
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/HTTPValidationError'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                type: object
-
-  /credential/{cardNumber}:
+                $ref: '#/components/schemas/HTTPValidationError'
+#region Credentials
+  /credentials/{companyCode}/{cardNumber}:
     get:
       tags:
         - Credentials
-      summary: Retrieve device details by cardNumber
+      summary: Retrieve credential details
       description: |
-       Retrieves device details associated with a specific card number.
+       Was **/device/{cardNumber}**
 
-       **Comment: When using this GET, should the {cardNumber} parameter include the companyCode?**
-      operationId: getDevice
+       Retrieves credential details associated with a specific companyCode/cardNumber.
+
       parameters:
-        - name: cardNumber
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: companyCode
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cardNumber
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
-          description: Device information
+          description: Credential information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReturnDevice'
+                $ref: '#/components/schemas/ReturnCredential'
         '422':
           description: Validation Error
           content:
@@ -107,7 +106,10 @@ paths:
       tags:
         - Credentials
       summary: Retrieve current credentials for a person
-      description: Retrieves the most recent credential for each device type associated with a person
+      description: |
+        Retrieves the most recent credential for each device type associated with a person
+
+        **Note: Should this return only 'active' credentials?**
       operationId: getCredentials
       parameters:
         - name: personId
@@ -115,6 +117,14 @@ paths:
           required: true
           schema:
             type: string
+        - name: include
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - history
+          description: When set to 'history', returns all historical credentials for the person
       responses:
         '200':
           description: List of the most recent credentials for each device type
@@ -127,14 +137,14 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/HTTPValidationError'
 
   /credentials/{personId}/all:
     get:
       tags:
         - Credentials
       summary: Retrieve all credentials for a person
-      description: Retrieves all credentials associated with a person, including historical credentials
+      description: Retrieves all credentials associated with a person, including historical and inactive credentials
       operationId: getAllCredentials
       parameters:
         - name: personId
@@ -155,17 +165,111 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+#region Bulk
+  /credentials/byCardNumbers:
+    post:
+      tags:
+        - Credentials
+      summary: Retrieve credential information for multiple card numbers
+      description: Returns detailed credential information for multiple card numbers in a single request
+      operationId: getCredentialBulk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cardNumbers:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Credential information for requested card numbers
+          content:
+            application/json:
+              schema:
                 type: object
 
+  /credentials/byPersonIds:
+    post:
+      tags:
+        - Credentials
+      summary: Retrieve credential information for multiple people        
+      description: |
+        Returns credential information consolidated by person ID for multiple people
+
+        **Note: Should this be consolidated with the single GET?**
+      operationId: getCredentialByPersonId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Credential information by person ID
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    personId:
+                      type: string
+                    physical:
+                      type: string
+                    phone:
+                      type: string
+                    watch:
+                      type: string
+                    wallet:
+                      type: string
+#region Downstream
+  /credentials/downstreamOnly:
+    post:
+      tags:
+        - Credentials
+      summary: Send credential events to downstream systems only
+      description: Sends credential events directly to downstream systems without storing in CardSync
+      operationId: credentialEventDownstreamOnly
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credential'
+      responses:
+        '200':
+          description: Events sent to downstream systems successfully
+          content:
+            application/json:
+              schema:
+                type: object
+#region Update
   /credential/updateStatus:
     post:
       tags:
         - Credentials
       summary: Update the status of a credential
       description: |
+        Was **/credentials/update**
+        
         Updates the status on the most recent credential for a person's specified device type
 
-        **Note: See request body.  Should this work off of cardNumber instead?**
+        **Note: The only reason to have this, instead of using POST /credential, is to have a simpler request body.**
+        
+        **If this is kept, should this work off of cardNumber instead?**
+            
       operationId: updateCredential
       requestBody:
         required: true
@@ -186,16 +290,57 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+#region Replay
+  /credential/replayEvent:
+    post:
+      tags:
+        - Credentials
+      summary: Replay CardSync Events to downstream systems
+      description: |
+        Resends one or more credential records to configured downstream systems
+
+        **Comment: How should this handle one vs all systems?**
+      operationId: replayCredentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ReplayRequestBodyIds'
+                - $ref: '#/components/schemas/ReplayRequestBodyIdsRange'
+                - $ref: '#/components/schemas/ReplayRequestBodyDates'
+      responses:
+        '200':
+          description: Replay successful
+          content:
+            application/json:
+              schema:
                 type: object
-
-  
-
+                properties:
+                  status:
+                    $ref: '#/components/schemas/ReplayStatus'
+                  message:
+                    type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+                  
+#region Mealplan
   /mealplan/{personId}:
     get:
       tags:
         - Mealplan
       summary: Retrieve mealplan account balances for a person
-      description: Retrieves all mealplan account balances associated with a person
+      description: |
+        Retrieves all mealplan account balances associated with a person.   
+
+        **Note: Does this stay in cardsync??**     
       operationId: getMealplan
       parameters:
         - name: personId
@@ -217,7 +362,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-
+#region Photo
   /mobilephoto/{personId}:
     get:
       tags:
@@ -243,7 +388,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/HTTPValidationError'
 
   /photo/has-photo/{personId}:
     get:
@@ -270,7 +415,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/HTTPValidationError'
 
   /photo/resolution/{personId}:
     get:
@@ -329,45 +474,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 
-  /replay:
-    post:
-      tags:
-        - Credentials
-      summary: Replay credential records to downstream systems
-      description: Resends one or more credential records to configured downstream systems
-      operationId: replayCredentials
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/ReplayRequestBodyIds'
-                - $ref: '#/components/schemas/ReplayRequestBodyIdsRange'
-                - $ref: '#/components/schemas/ReplayRequestBodyDates'
-      responses:
-        '200':
-          description: Replay successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    $ref: '#/components/schemas/ReplayStatus'
-                  message:
-                    type: string
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-
+#region Health
   /health:
     get:
       tags:
         - Health
+      summary: Check API health status
       description: Confirms the API is operational and responding to requests
       operationId: healthCheck
       responses:
@@ -382,7 +494,353 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+#region Provisioning
+  /provision/eligible:
+    post:
+      tags:
+        - Provisioning
+      summary: Set provisioning eligibility for a person
+      description: Sets provision eligibility to true, sends mealplan balances and photo data to the mobile provider
+      operationId: setProvisionEligible
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personId:
+                  type: string
+                provisionEligible:
+                  type: boolean
+      responses:
+        '200':
+          description: Provisioning eligibility set successfully
+          content:
+            application/json:
+              schema:
                 type: object
+
+  /provision/eligible/status:
+    post:
+      tags:
+        - Provisioning
+      summary: Check provisioning eligibility status for a person
+      description: Retrieves the current provisioning eligibility status for a person
+      operationId: statusOfProvisionEligibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personId:
+                  type: string
+      responses:
+        '200':
+          description: Provisioning eligibility status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId:
+                    type: string
+                  provisionEligible:
+                    type: boolean
+
+  /provision/eligible/check:
+    post:
+      tags:
+        - Provisioning
+      summary: Check provisioning eligibility for multiple people
+      description: Retrieves provisioning eligibility status for multiple people in a single request
+      operationId: checkProvisionEligible
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: List of provisioning eligibility statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    personId:
+                      type: string
+                    provisionEligible:
+                      type: boolean
+                    notFound:
+                      type: boolean
+#region AllowedSwitch
+  /allowedSwitches:
+    post:
+      tags:
+        - Provisioning
+      summary: Set allowed credential switches for a person
+      description: |
+        Sets the number of allowed credential switches for a person
+
+        **Note: This is not being used by CardPulse, do we need this?**
+      operationId: setAllowedSwitches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personId:
+                  type: string
+                allowedSwitches:
+                  type: integer
+      responses:
+        '200':
+          description: Allowed switches set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowedSwitches:
+                    type: integer
+                  lastUpdated:
+                    type: string
+                    format: date-time
+                  personId:
+                    type: string
+#region Events
+  /events:
+    get:
+      tags:
+        - Events
+      summary: Retrieve CardSync events
+      description: Retrieves credential events with optional filtering by date range, person ID, and limit
+      operationId: getEvents
+      parameters:
+        - name: start
+          in: query
+          description: Start date for filtering events (format YYYY-MM-DDTHH:MM:SSZ)
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          description: End date for filtering events (format YYYY-MM-DDTHH:MM:SSZ)
+          schema:
+            type: string
+            format: date-time
+        - name: sort
+          in: query
+          description: Sort order (ascending if provided, descending by default)
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return (0 for no limit)
+          schema:
+            type: integer
+            default: 0
+        - name: personId
+          in: query
+          description: Filter events by person ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of credential events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+#region Bursar
+  /bursar/paymentRequired/{personId}:
+    get:
+      tags:
+        - Billing
+      summary: Check if payment is required for a person
+      description: Determines if payment is required for mobile or physical card provisioning
+      operationId: isPaymentRequired
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment requirement status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isPaymentRequiredMobile:
+                    type: boolean
+                  isPaymentRequiredPhysical:
+                    type: boolean
+                  primaryAffiliation:
+                    type: string
+                  bursarStatus:
+                    type: string
+                  multicredentialMember:
+                    type: boolean
+
+  /bursar/agreement:
+    post:
+      tags:
+        - Billing
+      summary: Initiate bursar agreement process
+      description: Creates a mobile billing record and sets bursar status to pending
+      operationId: setBursarAgreement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personId:
+                  type: string
+      responses:
+        '200':
+          description: Bursar agreement process initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /bursar/agreement/expired:
+    patch:
+      tags:
+        - Billing
+      summary: Sets bursar agreements to status = expired
+      description: Updates bursar agreements in pending state that are over 24 hours old to expired status
+      operationId: setBursarAgreementExpired
+      responses:
+        '200':
+          description: Old bursar agreements updated to expired
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /bursar/billings:
+    get:
+      tags:
+        - Billing
+      summary: Retrieve completed bursar billings
+      description: Returns all mobile billing records with completed bursar status
+      operationId: getBursarBillings
+      responses:
+        '200':
+          description: List of completed bursar billings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    personId:
+                      type: string
+                    bursarStatus:
+                      type: string
+                    issuance:
+                      type: string
+    patch:
+      tags:
+        - Billing
+      summary: Update bursar billings to billed status
+      description: Updates mobile billing records from completed status to billed status for provided IDs
+      operationId: setBursarBillings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Billing records updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '404':
+          description: Billing records not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+#region Person
+  /person/{cardNumber}:
+    get:
+      tags:
+        - Person
+      summary: Retrieve person information by card number
+      description: Returns basic person information based on a card number
+      operationId: getPersonByCardNumber
+      parameters:
+        - name: cardNumber
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Person information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  personId:
+                    type: string
+                  firstName:
+                    type: string
+                  lastName:
+                    type: string
+                  netId:
+                    type: string
+                  email:
+                    type: string
+                  primaryAffiliation:
+                    type: string
+
+
 
 components:
   schemas:
@@ -453,7 +911,7 @@ components:
         createdAt:
           type: string
           format: date-time
-        changeId:
+        eventId:
           type: integer
         isInitial:
           type: boolean
@@ -536,7 +994,7 @@ components:
       type: object
       description: Request body for replay operation with specific change IDs
       properties:
-        changeIds:
+        eventIds:
           type: array
           items:
             type: integer
@@ -550,11 +1008,11 @@ components:
 
     ReplayRequestBodyIdsRange:
       type: object
-      description: Request body for replay operation with change ID range
+      description: Request body for replay operation with eventId range
       properties:
-        startChangeId:
+        startEventId:
           type: integer
-        endChangeId:
+        endEventId:
           type: integer
         destination:
           oneOf:
