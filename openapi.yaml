@@ -21,6 +21,27 @@ servers:
   - url: https://valar.api.futurestate.cloud/cardsync
     description: Production server
 paths:
+#region Health
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Check API health status
+      description: Confirms the API is operational and responding to requests
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 #region Credential
   /credentials:
     post:
@@ -34,6 +55,8 @@ paths:
         this operation appends a new credential event.
         
         The current credential is derived from the latest event per device type.
+
+        **Note: This endpoint is used for new credentials as well as updates to existing credentials, and has complex rule evaluation.  Should we keep this as is, or consider a different endpoint for updates that is keyed off of eventId or cardNumber instead?**
       requestBody:
         required: true
         content:
@@ -66,37 +89,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 #region Credentials
-  /credentials/{fullCardNumber}:
-    get:
-      tags:
-        - Credentials
-      summary: Retrieve credential details
-      description: |
-       Was **/device/{cardNumber}**
-
-       Retrieves credential details associated with a specific fullCardNumber.
-
-       A fullCardNumber is 11 digits long and consists of the company code, followed by zero-padding as needed, and then the card number: {companyCode}{zero padding}{cardNumber}.
-
-      parameters:
-      - name: fullCardNumber
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Credential information
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReturnCredential'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+  
                 
   /credentials/{personId}:
     get:
@@ -149,6 +142,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReturnCredentials'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
+  /credentials/{fullCardNumber}:
+    get:
+      tags:
+        - Credentials
+      summary: Retrieve credential details
+      description: |
+       Was **/device/{cardNumber}**
+
+       Retrieves credential details associated with a specific fullCardNumber.
+
+       A fullCardNumber consists of the company code, followed by zero-padding as needed, and then the card number: {companyCode}{zero padding}{cardNumber}. The length is limited by a customer configuration value.
+
+       **Note: The only purpose of this endpoint at UA was to retrieve other aspects of a credential when only a cardNumber was known.  For instance, showing credentials for EDS, UAccess, etc in CardPulse.  Those systems store only the number.  This GET is needed to fill in the missing details.** 
+
+      parameters:
+      - name: fullCardNumber
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Credential information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnCredential'
         '422':
           description: Validation Error
           content:
@@ -245,7 +272,7 @@ paths:
               schema:
                 type: object
 #region Update
-  /credentials/updateStatus:
+  /credentials/status:
     post:
       tags:
         - Credentials
@@ -356,11 +383,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 #region Photo
-  /mobilephoto/{personId}:
+  /mobilephotos/{personId}:
     get:
       tags:
         - Photo
-      description: Retrieves a person's photo optimized for mobile device display
+      description: Retrieves a person's photo optimized for mobile device display.  Returns a base64 image
       operationId: getMobilePhoto
       parameters:
         - name: personId
@@ -383,7 +410,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 
-  /photo/has-photo/{personId}:
+  /photos/has-photo/{personId}:
     get:
       tags:
         - Photo
@@ -410,7 +437,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 
-  /photo/resolution/{personId}:
+  /photos/resolution/{personId}:
     get:
       tags:
         - Photo
@@ -467,58 +494,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 
-#region Health
-  /health:
+
+
+#region Cardholders
+  /cardholders/{personId}:
     get:
       tags:
-        - Health
-      summary: Check API health status
-      description: Confirms the API is operational and responding to requests
-      operationId: healthCheck
-      responses:
-        '200':
-          description: API is healthy
-          content:
-            application/json:
-              schema:
-                type: object
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-#region Provisioning
-  /provision/eligible:
-    post:
-      tags:
-        - Provisioning
-      summary: Set provisioning eligibility for a person
-      description: Sets provision eligibility to true, sends mealplan balances and photo data to the mobile provider
-      operationId: setProvisionEligible
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                personId:
-                  type: string
-                provisionEligible:
-                  type: boolean
-      responses:
-        '200':
-          description: Provisioning eligibility set successfully
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /provision/eligible/status:
-    post:
-      tags:
-        - Provisioning
+        - Cardholders
       summary: Check provisioning eligibility status for a person
       description: Retrieves the current provisioning eligibility status for a person
       operationId: statusOfProvisionEligibility
@@ -544,12 +526,15 @@ paths:
                   provisionEligible:
                     type: boolean
 
-  /provision/eligible/check:
+  /cardholders/query:
     post:
       tags:
-        - Provisioning
+        - Cardholders
       summary: Check provisioning eligibility for multiple people
-      description: Retrieves provisioning eligibility status for multiple people in a single request
+      description: |
+        **Was /checkProvisionEligible**
+
+        Retrieves multiple cardholders full properties.
       operationId: checkProvisionEligible
       requestBody:
         required: true
@@ -578,16 +563,18 @@ paths:
                       type: boolean
                     notFound:
                       type: boolean
-#region AllowedSwitch
-  /allowedSwitches:
-    post:
-      tags:
-        - Provisioning
-      summary: Set allowed credential switches for a person
-      description: |
-        Sets the number of allowed credential switches for a person
 
-        **Note: This is not being used by CardPulse, do we need this?**
+  /cardholders:
+    patch:
+      tags:
+        - Cardholders
+      summary: Update properties for a cardholder
+      description: |
+        **Was /setAllowedSwitches**
+
+        **Was /setProvisionEligible**
+
+        Update properties for a cardholder
       operationId: setAllowedSwitches
       requestBody:
         required: true
@@ -616,10 +603,10 @@ paths:
                   personId:
                     type: string
 #region Events
-  /events:
+  /credentials/events:
     get:
       tags:
-        - Events
+        - Credentials
       summary: Retrieve CardSync events
       description: Retrieves credential events with optional filtering by date range, person ID, and limit
       operationId: getEvents
@@ -803,9 +790,12 @@ paths:
     get:
       tags:
         - Person
-      summary: Retrieve person information by card number
-      description: Returns basic person information based on a card number
-      operationId: getPersonByCardNumber
+      summary: |
+        Retrieve a person record (People Table) by card number.
+      description: |
+        Returns basic person information based on a card number
+
+        **Note: Look at what a limited/basic person return looks like already in the core person lookup API**
       parameters:
         - name: cardNumber
           in: path
@@ -818,20 +808,50 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  personId:
-                    type: string
-                  firstName:
-                    type: string
-                  lastName:
-                    type: string
-                  netId:
-                    type: string
-                  email:
-                    type: string
-                  primaryAffiliation:
-                    type: string
+                type: array
+                items:
+                  type: object
+                  properties:
+                    personId:
+                      type: string
+                    nameGiven:
+                      type: string
+                    nameMiddle:
+                      type: string
+                    nameFamily:
+                      type: string
+                    namePreferred:
+                      anyOf:
+                        - type: string
+                        - type: "null"
+                    primaryAffiliation:
+                      type: string
+                    employeeTitle:
+                      type: string
+                    employeeFte:
+                      anyOf:
+                        - type: number
+                        - type: "null"
+                    employeePrimaryDeptName:
+                      anyOf:
+                        - type: string
+                        - type: "null"
+                    employeeDepartmentCode:
+                      anyOf:
+                        - type: string
+                        - type: "null"
+                    employeeJobClass:
+                      anyOf:
+                        - type: string
+                        - type: "null"
+                    email:
+                      type: string
+                      format: email
+                    username:
+                      type: string
+                    active:
+                      type: string
+
 
 
 
