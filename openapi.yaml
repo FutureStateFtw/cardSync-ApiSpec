@@ -33,7 +33,7 @@ paths:
         If the request is valid,
         this operation appends a new credential event.
         
-        The active credential is derived from the latest event per device type.
+        The current credential is derived from the latest event per device type.
       requestBody:
         required: true
         content:
@@ -66,7 +66,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 #region Credentials
-  /credentials/{companyCode}/{cardNumber}:
+  /credentials/{fullCardNumber}:
     get:
       tags:
         - Credentials
@@ -74,15 +74,12 @@ paths:
       description: |
        Was **/device/{cardNumber}**
 
-       Retrieves credential details associated with a specific companyCode/cardNumber.
+       Retrieves credential details associated with a specific fullCardNumber.
+
+       A fullCardNumber is 11 digits long and consists of the company code, followed by zero-padding as needed, and then the card number: {companyCode}{zero padding}{cardNumber}.
 
       parameters:
-      - name: companyCode
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: cardNumber
+      - name: fullCardNumber
         in: path
         required: true
         schema:
@@ -117,14 +114,6 @@ paths:
           required: true
           schema:
             type: string
-        - name: include
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - history
-          description: When set to 'history', returns all historical credentials for the person
       responses:
         '200':
           description: List of the most recent credentials for each device type
@@ -256,7 +245,7 @@ paths:
               schema:
                 type: object
 #region Update
-  /credential/updateStatus:
+  /credentials/updateStatus:
     post:
       tags:
         - Credentials
@@ -266,9 +255,13 @@ paths:
         
         Updates the status on the most recent credential for a person's specified device type
 
-        **Note: The only reason to have this, instead of using POST /credential, is to have a simpler request body.**
+        If the request is valid, this operation appends a new credential event.
+
+        The current credential is derived from the latest event per device type.
+
+        **Note: This endpoint needs some consideration.  It appears the only reason to have this, instead of using POST /credential, is to have a simplified request body.**
         
-        **If this is kept, should this work off of cardNumber instead?**
+        **If this is kept, should this work off of cardNumber or eventId instead?**
             
       operationId: updateCredential
       requestBody:
@@ -293,7 +286,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 
 #region Replay
-  /credential/replayEvent:
+  /credentials/replayEvent:
     post:
       tags:
         - Credentials
