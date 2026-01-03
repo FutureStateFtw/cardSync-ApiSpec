@@ -41,7 +41,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-#region Credential
+#region Credentials
   /credentials:
     post:
       tags:
@@ -85,8 +85,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-#region Credentials
-  
                 
   /credentials/{personId}:
     get:
@@ -260,7 +258,7 @@ paths:
                 type: object
 #region Update
   /credentials/status:
-    post:
+    patch:
       tags:
         - Credentials
       summary: Update the status of a credential
