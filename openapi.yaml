@@ -28,7 +28,6 @@ paths:
         - Health
       summary: Check API health status
       description: Confirms the API is operational and responding to requests
-      operationId: healthCheck
       responses:
         '200':
           description: API is healthy
@@ -55,8 +54,6 @@ paths:
         this operation appends a new credential event.
         
         The current credential is derived from the latest event per device type.
-
-        **Note: This endpoint is used for new credentials as well as updates to existing credentials, and has complex rule evaluation.  Should we keep this as is, or consider a different endpoint for updates that is keyed off of eventId or cardNumber instead?**
       requestBody:
         required: true
         content:
@@ -98,9 +95,6 @@ paths:
       summary: Retrieve current credentials for a person
       description: |
         Retrieves the most recent credential for each device type associated with a person
-
-        **Note: Should this return only 'active' credentials?**
-      operationId: getCredentials
       parameters:
         - name: personId
           in: path
@@ -127,7 +121,6 @@ paths:
         - Credentials
       summary: Retrieve all credentials for a person
       description: Retrieves all credentials associated with a person, including historical and inactive credentials
-      operationId: getAllCredentials
       parameters:
         - name: personId
           in: path
@@ -160,9 +153,6 @@ paths:
        Retrieves credential details associated with a specific fullCardNumber.
 
        A fullCardNumber consists of the company code, followed by zero-padding as needed, and then the card number: {companyCode}{zero padding}{cardNumber}. The length is limited by a customer configuration value.
-
-       **Note: The only purpose of this endpoint at UA was to retrieve other aspects of a credential when only a cardNumber was known.  For instance, showing credentials for EDS, UAccess, etc in CardPulse.  Those systems store only the number.  This GET is needed to fill in the missing details.** 
-
       parameters:
       - name: fullCardNumber
         in: path
@@ -189,7 +179,6 @@ paths:
         - Credentials
       summary: Retrieve credential information for multiple card numbers
       description: Returns detailed credential information for multiple card numbers in a single request
-      operationId: getCredentialBulk
       requestBody:
         required: true
         content:
@@ -218,7 +207,6 @@ paths:
         Returns credential information consolidated by person ID for multiple people
 
         **Note: Should this be consolidated with the single GET?**
-      operationId: getCredentialByPersonId
       requestBody:
         required: true
         content:
@@ -257,7 +245,6 @@ paths:
         - Credentials
       summary: Send credential events to downstream systems only
       description: Sends credential events directly to downstream systems without storing in CardSync
-      operationId: credentialEventDownstreamOnly
       requestBody:
         required: true
         content:
@@ -286,11 +273,8 @@ paths:
 
         The current credential is derived from the latest event per device type.
 
-        **Note: This endpoint needs some consideration.  It appears the only reason to have this, instead of using POST /credential, is to have a simplified request body.**
-        
-        **If this is kept, should this work off of cardNumber or eventId instead?**
+        **Note: This endpoint does not require the requestor to know the eventId or cardNumber.  Is that okay?**
             
-      operationId: updateCredential
       requestBody:
         required: true
         description: Credential update data including personId, status, and device type
@@ -321,8 +305,7 @@ paths:
       description: |
         Resends one or more credential records to configured downstream systems
 
-        **Comment: How should this handle one vs all systems?**
-      operationId: replayCredentials
+        **Comment: How should this handle one vs all systems?  Should 'all' be explicit or implied in the absence of a destination?**
       requestBody:
         required: true
         content:
@@ -358,10 +341,7 @@ paths:
         - Mealplan
       summary: Retrieve mealplan account balances for a person
       description: |
-        Retrieves all mealplan account balances associated with a person.   
-
-        **Note: Does this stay in cardsync??**     
-      operationId: getMealplan
+        Retrieves all mealplan account balances associated with a person.  
       parameters:
         - name: personId
           in: path
@@ -388,7 +368,6 @@ paths:
       tags:
         - Photo
       description: Retrieves a person's photo optimized for mobile device display.  Returns a base64 image
-      operationId: getMobilePhoto
       parameters:
         - name: personId
           in: path
@@ -416,7 +395,6 @@ paths:
         - Photo
       summary: Check if a photo exists for a person
       description: Checks whether a photo is on file for a person
-      operationId: hasPhoto
       parameters:
         - name: personId
           in: path
@@ -443,7 +421,6 @@ paths:
         - Photo
       summary: Retrieve photo resolution for a person
       description: Retrieves the resolution dimensions of a person's original photo
-      operationId: getPhotoResolution
       parameters:
         - name: personId
           in: path
@@ -471,7 +448,6 @@ paths:
         - Photo
       summary: Retrieve photo resolutions for multiple people
       description: Retrieves photo resolution dimensions for multiple people in a single request
-      operationId: getPhotosResolutions
       requestBody:
         required: true
         content:
@@ -503,7 +479,6 @@ paths:
         - Cardholders
       summary: Check provisioning eligibility status for a person
       description: Retrieves the current provisioning eligibility status for a person
-      operationId: statusOfProvisionEligibility
       requestBody:
         required: true
         content:
@@ -535,7 +510,6 @@ paths:
         **Was /checkProvisionEligible**
 
         Retrieves multiple cardholders full properties.
-      operationId: checkProvisionEligible
       requestBody:
         required: true
         content:
@@ -575,7 +549,6 @@ paths:
         **Was /setProvisionEligible**
 
         Update properties for a cardholder
-      operationId: setAllowedSwitches
       requestBody:
         required: true
         content:
@@ -609,7 +582,6 @@ paths:
         - Credentials
       summary: Retrieve CardSync events
       description: Retrieves credential events with optional filtering by date range, person ID, and limit
-      operationId: getEvents
       parameters:
         - name: start
           in: query
@@ -656,7 +628,6 @@ paths:
         - Billing
       summary: Check if payment is required for a person
       description: Determines if payment is required for mobile or physical card provisioning
-      operationId: isPaymentRequired
       parameters:
         - name: personId
           in: path
@@ -688,7 +659,6 @@ paths:
         - Billing
       summary: Initiate bursar agreement process
       description: Creates a mobile billing record and sets bursar status to pending
-      operationId: setBursarAgreement
       requestBody:
         required: true
         content:
@@ -712,7 +682,6 @@ paths:
         - Billing
       summary: Sets bursar agreements to status = expired
       description: Updates bursar agreements in pending state that are over 24 hours old to expired status
-      operationId: setBursarAgreementExpired
       responses:
         '200':
           description: Old bursar agreements updated to expired
@@ -727,7 +696,6 @@ paths:
         - Billing
       summary: Retrieve completed bursar billings
       description: Returns all mobile billing records with completed bursar status
-      operationId: getBursarBillings
       responses:
         '200':
           description: List of completed bursar billings
@@ -751,7 +719,6 @@ paths:
         - Billing
       summary: Update bursar billings to billed status
       description: Updates mobile billing records from completed status to billed status for provided IDs
-      operationId: setBursarBillings
       requestBody:
         required: true
         content:
@@ -795,7 +762,7 @@ paths:
       description: |
         Returns basic person information based on a card number
 
-        **Note: Look at what a limited/basic person return looks like already in the core person lookup API**
+        **Note: Maybe we match this to what a limited/basic person return looks like already in the core person lookup API**
       parameters:
         - name: cardNumber
           in: path
