@@ -43,7 +43,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 #region Credentials
   /credentials:
-    post:
+    put:
       tags:
         - Credentials
       summary: Submit a credential state
